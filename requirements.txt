@@ -14,5 +14,6 @@ langgraph
 crewai
 langchain-openai 
 langchain-community
-
+pypdf
+langchain-chroma
 # uvicorn main:app --reload
