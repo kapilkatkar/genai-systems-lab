@@ -1,0 +1,18 @@
+fastapi
+uvicorn
+openai
+langchain
+langchain-openai
+langchain-community
+chromadb
+faiss
+PyPDF2
+faiss-cpu
+tiktoken
+redis
+langgraph
+crewai
+langchain-openai 
+langchain-community
+
+# uvicorn main:app --reload
