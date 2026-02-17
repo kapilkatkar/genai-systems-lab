@@ -1,19 +1,18 @@
 fastapi
 uvicorn
 openai
-langchain
-langchain-openai
-langchain-community
 chromadb
-faiss
-PyPDF2
 faiss-cpu
+PyPDF2
+pypdf
 tiktoken
 redis
 langgraph
 crewai
-langchain-openai 
-langchain-community
-pypdf
-langchain-chroma
-# uvicorn main:app --reload
+
+# LangChain stack (all pinned to same stable version)
+langchain==0.2.0
+langchain-openai==0.2.0
+langchain-community==0.2.0
+langchain-core==0.2.0
+langchain-chroma==0.2.0
