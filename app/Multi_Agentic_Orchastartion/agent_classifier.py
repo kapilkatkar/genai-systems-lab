@@ -56,7 +56,7 @@ def get_agent_registry(tools: List[Tool]) -> List[Agent]:
             tools=[
                 tool_dict["rag1"],
                 tool_dict["data2"],
-                tool_dict["action1"],
+                tool_dict["action2"],
             ]
         ),
         Agent(
@@ -90,7 +90,7 @@ def get_agent_registry(tools: List[Tool]) -> List[Agent]:
             tools=[
                 tool_dict["rag1"],
                 tool_dict["data2"],
-                tool_dict["action1"],
+                tool_dict["action2"],
             ]
         ),
         Agent(
@@ -99,7 +99,7 @@ def get_agent_registry(tools: List[Tool]) -> List[Agent]:
             tools=[
                 tool_dict["rag1"],
                 tool_dict["get_jira_ticket"],
-                tool_dict["action1"],
+                tool_dict["CreateJiraTicket"],
             ]
         ),
     ]

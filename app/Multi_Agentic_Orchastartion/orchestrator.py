@@ -1,8 +1,10 @@
+# orchestrator.py
 from app.Multi_Agentic_Orchastartion.agent_classifier import AgentClassifier
 from app.Multi_Agentic_Orchastartion.intent_classifier import IntentClassifier
 from app.Multi_Agentic_Orchastartion.tool_selector import ToolSelector
 from app.Multi_Agentic_Orchastartion.memory import AgentMemory
-from app.Multi_Agentic_Orchastartion.tools import get_tool_meta
+from app.Multi_Agentic_Orchastartion.actions.fileds_excractor import extract_fields_from_message
+
 
 class Orchestrator:
     def __init__(self, agents):
@@ -11,10 +13,11 @@ class Orchestrator:
         self.intent_classifier = IntentClassifier()
         self.tool_selector = ToolSelector()
         self.memory = AgentMemory()
-        self.tool_meta = get_tool_meta()
 
     def run(self, task: str):
-        # Default structured output
+        print("\n--- Orchestrator: New task ---")
+        print(f"User task: {task}")
+
         output_struct = {
             "agent": None,
             "intent": None,
@@ -24,50 +27,79 @@ class Orchestrator:
             "action_result": {}
         }
 
-        # Agent Selection
+        # 1️⃣ Agent selection
         agent_name = self.agent_classifier.classify(task, self.agents)
         agent = next((a for a in self.agents if a.name == agent_name), None)
         output_struct["agent"] = agent_name
-
         if not agent:
             output_struct["action_result"] = {"error": f"Agent '{agent_name}' not found."}
             return output_struct
 
-        # Intent Classification
+        # 2️⃣ Intent classification
         intent = self.intent_classifier.classify(task)
         output_struct["intent"] = intent
 
-        # Filter tools by intent category
-        candidate_tools = [
-            t for t in agent.tools if self.tool_meta[t.name]["category"] == intent
-        ]
+        # 3️⃣ Check pending transaction
+        pending_txn = self.memory.get_pending_transaction(agent_name)
+        if pending_txn:
+            print(f"Pending transaction found for agent '{agent_name}': {pending_txn}")
+            collected_fields = extract_fields_from_message(task, pending_txn["required_fields"])
+            pending_txn["collected_fields"].update({k: v for k, v in collected_fields.items() if v})
+            missing = [f for f in pending_txn["required_fields"] if not pending_txn["collected_fields"].get(f)]
+            if missing:
+                return {
+                    "agent": agent_name,
+                    "intent": "transaction",
+                    "tool": pending_txn["tool"],
+                    "action_result": {"message": f"Missing required fields: {', '.join(missing)}"}
+                }
 
+            # Execute tool
+            tool_obj = next(t for t in agent.tools if t.name == pending_txn["tool"])
+            tool_output = tool_obj.func(**pending_txn["collected_fields"])
+            self.memory.clear_pending_transaction(agent_name)
+            output_struct["tool"] = tool_obj.name
+            output_struct["action_result"] = {"message": tool_output}
+            return output_struct
+
+        # 4️⃣ Tool selection
+        candidate_tools = [t for t in agent.tools if getattr(t, "category", "").lower() == intent.lower()]
         if not candidate_tools:
             output_struct["tool"] = "none"
             output_struct["action_result"] = {"error": f"No tool available for intent '{intent}'."}
             return output_struct
 
-        # Tool Selection
         selected_tool_name = self.tool_selector.select(task, candidate_tools)
-        selected_tool_name = selected_tool_name.strip().lower().replace(".", "").split()[-1]
+        selected_tool = next((t for t in candidate_tools if t.name.lower() == selected_tool_name.lower()), candidate_tools[0])
+        output_struct["tool"] = selected_tool.name
 
-        # Find tool safely
-        selected_tool = next((t for t in candidate_tools if t.name.lower() == selected_tool_name), candidate_tools[0])
-        selected_tool_name = selected_tool.name
-        output_struct["tool"] = selected_tool_name
+        # 5️⃣ Check required fields
+        required_fields = getattr(selected_tool, "required_fields", [])
+        print(f"Required fields for tool '{selected_tool.name}': {required_fields}")
+        collected_fields = extract_fields_from_message(task, required_fields) if required_fields else {}
+        print(f"Collected fields: {collected_fields}")
 
-        # Execute the tool
-        tool_output = selected_tool.func(task, agent_name)
+        missing = [f for f in required_fields if not collected_fields.get(f)]
+        if missing:
+            self.memory.set_pending_transaction(agent_name, selected_tool.name, required_fields, collected_fields)
+            return {
+                "agent": agent_name,
+                "intent": "transaction",
+                "tool": selected_tool.name,
+                "action_result": {"message": f"Missing required fields: {', '.join(missing)}"}
+            }
 
-        # Assign output to the correct field based on intent
+        # 6️⃣ Execute tool
+        tool_output = selected_tool.func(**collected_fields) if required_fields else selected_tool.func(task)
+
+        # 7️⃣ Build output
         if intent.lower() == "policy":
             output_struct["policy_result"] = tool_output if isinstance(tool_output, dict) else {"result": tool_output}
         elif intent.lower() == "data_assist":
             output_struct["data_result"] = tool_output if isinstance(tool_output, dict) else {"result": tool_output}
-        else:  # default: action
-            output_struct["action_result"] = tool_output if isinstance(tool_output, dict) else {"result": tool_output}
+        else:
+            output_struct["action_result"] = {"message": tool_output} if isinstance(tool_output, str) else tool_output
 
-        # Save structured output to memory
+        # 8️⃣ Save to memory
         self.memory.add(agent_name, output_struct)
-
         return output_struct
