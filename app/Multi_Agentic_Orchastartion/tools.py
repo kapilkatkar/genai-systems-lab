@@ -20,8 +20,8 @@ class RagTool1:
     category = "policy"
     description = "RAG tool 1 for policy documents."
 
-    def run(self, query: str, domain: str) -> dict:
-        return rag_pipeline(query=query, domain=domain)
+    def run(self, query: str, **kwargs) -> dict:
+        return rag_pipeline(query=query, domain=kwargs.get("agent", "default"))
 
 
 
@@ -62,10 +62,12 @@ class DataTool3:
     category = "data_assist"
     description = "Fetch ticket history for a customer."
 
-    def run(self, query: str, domain: str) -> dict:
-        # domain is the agent_name, unused here but passed for consistency
+    def run(self, query: str, **kwargs) -> dict:
+        # ignore domain or other optional args
         jql = f'project = {JIRA_PROJECT_KEY} AND summary ~ "{query}"'
-        return {"tickets": get_jira_tickets(jql=jql)}
+        tickets = get_jira_tickets(jql=jql)
+        return {"tickets": tickets}
+
 
 # ----------------- TRANSACTION TOOLS -----------------
 class ActionTool1:
