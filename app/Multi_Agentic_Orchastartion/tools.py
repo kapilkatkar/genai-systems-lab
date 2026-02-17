@@ -11,6 +11,7 @@ class Tool:
     description: str
     category: str
     func: Callable[[str], str]
+    required_fields: List[str] = None
 
 
 # ----------------- POLICY TOOLS -----------------
@@ -68,28 +69,16 @@ class DataTool3:
 
 # ----------------- TRANSACTION TOOLS -----------------
 class ActionTool1:
-    name = "action1"
+    name = "CreateJiraTicket"
     category = "transaction"
     description = "Create a new ticket in ticketing system."
+    required_fields = ["summary", "description"]
 
-    def run(self, query: str, *args, **kwargs) -> str:
-        """
-        Run the action: create a Jira ticket using the query as the summary.
-        Ignores extra positional or keyword arguments.
-        """
-        summary = query
-        description_text = f"Automatically created ticket with summary: {query}"
+    def run(self, summary=None, description=None):
+        if not summary or not description:
+            return "Missing required fields: summary and description."
+        return f"Ticket created successfully for: {summary}"
 
-        try:
-            ticket = create_jira_ticket(
-                summary=summary,
-                description_text=description_text,
-                issuetype="Task",
-                assignee_id=None
-            )
-            return f"Ticket created successfully: {ticket.get('key')}"
-        except Exception as e:
-            return f"Failed to create ticket: {str(e)}"
 
 
 
@@ -138,7 +127,8 @@ def get_tool_registry() -> List[Tool]:
             name=ActionTool1.name,
             description=ActionTool1.description,
             category=ActionTool1.category,
-            func=ActionTool1().run
+            func=ActionTool1().run,
+            required_fields=["summary", "description"] 
         ),
         Tool(
             name=ActionTool2.name,
