@@ -78,9 +78,36 @@ class ActionTool1:
 
     def run(self, summary=None, description=None):
         if not summary or not description:
-            return "Missing required fields: summary and description."
-        return f"Ticket created successfully for: {summary}"
+            return {
+                "status": "error",
+                "message": "Missing required fields: summary and description."
+            }
 
+        try:
+            # 🔹 Call your Jira utility function
+            jira_response = create_jira_ticket(
+                summary=summary,
+                description_text=description
+            )
+
+            ticket_key = jira_response.get("key")
+            ticket_id = jira_response.get("id")
+
+            return {
+                "status": "success",
+                "message": f"Ticket created successfully: {ticket_key}",
+                "data": {
+                    "ticket_id": ticket_id,
+                    "ticket_key": ticket_key,
+                    "summary": summary
+                }
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to create ticket: {str(e)}"
+            }
 
 
 
